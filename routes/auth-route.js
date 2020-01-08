@@ -5,65 +5,25 @@ const jwt = require("jsonwebtoken");
 const knex = require("../db");
 const short = require('short-uuid');
 const nodemailer = require("nodemailer");
-const moment = require("moment");
+const {getTokenRowData, isTokenExpired , verifyUser , generateHashPassword , createUser , sendTokenToEmail, createExpiryToken} = require("../helpers/auth-helper");
 
 
-const smtpTransport = nodemailer.createTransport({
-    service: "Gmail",
-    host: process.env.EMAIL_HOST,
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD
-    },
-    port: 587
-})
 
 
 
 
 router.post("/register", async (req, res, next) => {
-
-
     const { userName, email, password } = req.body;
-    const salt = await bcrypt.genSalt(10);
-    const hashPassword = await bcrypt.hash(password, salt);
+    const hashPassword = await generateHashPassword(password);
     const randomToken = short().new();
 
-    const user = {
-        userName,
-        email,
-        password: hashPassword,
-    }
-
-    const mailOptions = {
-        from: process.env.EMAIL_HOST,
-        to: `${email}`,
-        subject: "verify your email",
-        text: `localhost:3000/verify/${randomToken}`
-    }
-
     try {
-
-        await knex("users").insert(user);
-
-        await knex("token").insert({
-            uuid: randomToken,
-            userName,
-            expiry_time: moment().add(15,"minutes").format("YYYY-MM-DD HH:mm:ss")
-        }).catch(err => {
-            next(err);
-        })
-
-
-        smtpTransport.sendMail(mailOptions, (error, info) => {
-            if (error) {
-                next(err);
-            } else {
-                res.status(200).send('registered successfully please check your email: ' + info.response);
-            }
-        })
-
-
+        await createUser(userName,email,hashPassword);
+        await createExpiryToken(randomToken,userName);
+        const isEmailSent = sendTokenToEmail(email,randomToken);
+        if(isEmailSent){
+            res.status(200).send('registered successfully please check your email: ');
+        }
     } catch (err) {
         if (err.errno === 1062) {
             res.status(401).send("this user has already been registered");
@@ -75,43 +35,49 @@ router.post("/register", async (req, res, next) => {
 
 
 router.put("/verify", async (req, res, next) => {
-
     const {uuid} = req.body;
 
-    const {expiry_time} =  await knex("token")
-                          .select("expiry_time")
-                          .where({uuid})
-                          .first()
+    const [rowData] = await getTokenRowData(uuid);
 
-    if(!expiry_time){
-        res.status(404).send("token not found");
+    if(!rowData){
+        return res.status(404).send("token not found");
     }
 
-    const timeDifference = moment().diff(moment(expiry_time),"minutes");
-    
-    if(timeDifference > 15){
-        res.status(403).send("token expired please request a new token");
+    if(isTokenExpired(rowData.expiry_time)){
+        return res.status(403).send("token expired please request a new token");
     }
 
+    const isVerfied = await verifyUser(rowData.userName);
 
+    if(isVerfied){
+        await knex("token").where({userName: rowData.userName}).del();
+        return res.status(200).send("you have successfully verified your account");
 
+    }
 })
 
 
 
 router.post("/login", async (req, res) => {
     const { userName, password } = req.body;
-    const [foundPassword] = await knex("users").pluck("password").where({ userName });
-    if (!foundPassword) {
-        res.status(401).send("Invalid username")
+    const [foundUser] = await knex("users").where({ userName });
+
+    if (!foundUser) {
+        return res.status(401).send("Invalid username")
     }
+
+    if(!foundUser.isVerfied){
+        return res.status(401).send("username is not verified please check your email")
+    }
+
+
     const checkPasswordValid = await bcrypt.compare(password, foundPassword);
     if (checkPasswordValid) {
         const token = jwt.sign({
             data: req.body
         }, "secret", { expiresIn: "1d" });
 
-        res.status(200).send({
+        return res.status(200).send({
             message: "login successfully",
             token
         })
