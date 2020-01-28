@@ -4,10 +4,7 @@ const bcrypt = require("bcryptjs")
 const jwt = require("jsonwebtoken");
 const knex = require("../db");
 const short = require('short-uuid');
-const nodemailer = require("nodemailer");
 const {getTokenRowData, isTokenExpired , verifyUser , generateHashPassword , createUser , sendTokenToEmail, createExpiryToken} = require("../helpers/auth-helper");
-
-
 
 
 
@@ -67,7 +64,7 @@ router.post("/login", async (req, res) => {
     }
 
     if(!foundUser.isVerfied){
-        return res.status(401).send("username is not verified please check your email")
+        return res.status(401).send("username is not verified please verify your email address")
     }
 
 
@@ -75,7 +72,7 @@ router.post("/login", async (req, res) => {
     if (checkPasswordValid) {
         const token = jwt.sign({
             data: req.body
-        }, "secret", { expiresIn: "1d" });
+        }, process.env.JWT_SECRET, { expiresIn: "1d" });
 
         return res.status(200).send({
             message: "login successfully",

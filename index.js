@@ -1,4 +1,4 @@
-const knex = require("./db");
+const db = require("./db");
 const cors = require("cors");
 const express = require("express");
 const authRoute = require("./routes/auth-route");
@@ -11,18 +11,18 @@ app.use(express.json());
 app.use("/auth",authRoute);
 
 
-const verifyToken = ((req,res,next) => {
-    const bearerHeader = req.headers["authorization"];
-    if(typeof bearerHeader !== "undefined"){
-        const bearer = bearerHeader.split(" ");
-        const bearerToken = bearer[1];
+// const verifyToken = ((req,res,next) => {
+//     const bearerHeader = req.headers["authorization"];
+//     if(typeof bearerHeader !== "undefined"){
+//         const bearer = bearerHeader.split(" ");
+//         const bearerToken = bearer[1];
 
-        req.token = bearerToken;
-        next()
-    }else {
-        res.sendStatus(403);
-    }
-})
+//         req.token = bearerToken;
+//         next()
+//     }else {
+//         res.sendStatus(403);
+//     }
+// })
 
 
 app.listen(PORT,()=> {
