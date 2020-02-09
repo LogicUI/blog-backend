@@ -4,8 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "jest --watch",
-    "node": "nodemon ./index.js"
+    "test": "env NODE_ENV=test PORT=3001 jest --runInBand  --watch ",
+    "node": "env NODE_ENV=local  nodemon  ./index.js",
+    "test2":"env NODE_ENV=test nodemon ./index.js"
   },
   "keywords": [],
   "author": "",
@@ -25,6 +26,7 @@
   },
   "devDependencies": {
     "jest": "^24.9.0",
+    "sqlite": "^3.0.3",
     "sqlite3": "^4.1.1",
     "supertest": "^4.0.2"
   }
