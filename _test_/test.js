@@ -1,15 +1,14 @@
 const request = require("supertest");
+const app = require("../index");
 const express = require("express");
-const db = new sqlite3.Database(":memory");
-const app = express();
 
 describe('auth route', () => {
 
-    beforeEach(() => [
-        
-    ])
 
-    it('should work', () => {
-        expect(2 + 2).toBe(4);
+    it('should work', async done=> {
+        const response = await request(app);
+        done();
     });
+
+
 });
